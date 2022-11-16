@@ -26,6 +26,7 @@ template version: 1.6 (2016/11/09)
 from timeit import default_timer as timer
 from multiprocessing import Pool
 from tqdm import tqdm
+import numpy as np 
 import sys
 import os
 import os.path
@@ -139,17 +140,17 @@ def my_func(args):
     fname = args[0]
     dnlurl = args[1]
     dest_dir = args[2]
-    rsync_cmd = "rsync --times --copy-links --verbose -aq %s %s"
-    retcode = subprocess.call(rsync_cmd % (dnlurl, dest_dir), shell=True)
+    rsync_cmd = f"rsync --times --copy-links --partial {dnlurl} {dest_dir}"
+    retcode = subprocess.call(rsync_cmd, shell=True)
     return (args, retcode)
 
 
-def parse_assemblyfile(branch, genomictypes=["Complete Genome"], dest_dir='genomes'):
-    fname = 'genomes/refseq/%s/assembly_summary.txt' % branch
-    url = 'rsync://ftp.ncbi.nlm.nih.gov/%s' %(fname)
+def parse_assemblyfile(branch, genomictypes=["Complete Genome"], dest_dir='/mnt/UTELifeNAS/homes/Savvy/Genomes'):
+    fname = f'genomes/refseq/{branch}/assembly_summary.txt'
+    url = f'rsync://ftp.ncbi.nlm.nih.gov/{fname}'
 
-    rsync_cmd = "rsync -R --times --copy-links --verbose -aq %s %s"
-    retcode = subprocess.call(rsync_cmd % (url, dest_dir), shell=True)
+    rsync_cmd = f"rsync -R --times --copy-links --partial {url} {dest_dir}"
+    retcode = subprocess.call(rsync_cmd, shell=True)
    
     jobs = []
     # read file, extract ftp paths and download each file
@@ -177,7 +178,7 @@ def parse_assemblyfile(branch, genomictypes=["Complete Genome"], dest_dir='genom
             dnlurl   = os.path.join(ftp_path, name)
             #### Replace 'ftp://' by 'https://' 
             dnlurl = dnlurl.replace('https://', 'rsync://')
-            jobs.append((name, dnlurl, 'genomes/refseq/%s' % branch, branch))
+            jobs.append((name, dnlurl, f'/mnt/UTELifeNAS/homes/Savvy/Genomes/refseq/{branch}', branch))
     return jobs, retcode, d
 
 
@@ -194,7 +195,7 @@ def main():
 
     job_list = []
     for branch in branches:
-        job_list_branch, retcode, dStats = parse_assemblyfile(branch, types, 'genomes')
+        job_list_branch, retcode, dStats = parse_assemblyfile(branch, types, '/mnt/UTELifeNAS/homes/Savvy/Genomes/')
         job_list += job_list_branch
         if args.assemblystats:
             status = dStats.keys()
@@ -211,10 +212,9 @@ def main():
     #-------------------------------------------------------------------------
     # MULTITHREADING V2 (by Savandara Besse)
     #-------------------------------------------------------------------------
-
     p = multiprocessing.Pool(initializer=init_worker, initargs=(tqdm.get_lock(),), processes=process_number)
     try:
-        pbar = tqdm(job_list, maxinterval=1.0, miniters=1, desc="Job done: ", bar_format="{desc}:{percentage:3.0f}%|{bar}|")
+        pbar = tqdm(job_list, maxinterval=1.0, miniters=1, desc="Completed jobs: ", bar_format="{desc}:{percentage:3.0f}%|{bar}|")
         for _, result in enumerate(p.imap_unordered(my_func, job_list, chunksize=1)):
             pbar.update(1)  # Everytime the iteration finishes, update the global progress bar
 
@@ -226,7 +226,7 @@ def main():
         pbar.close()
         p.terminate()
         p.join()
-        time.sleep(2)
+        time.sleep(np.random.uniform(low=0.0, high=2.0, size=None))
         exit(1)
 
     return

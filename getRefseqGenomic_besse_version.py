@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 """
 NAME: getKrakenFasta.py
 =========
@@ -22,6 +22,7 @@ LICENCE
 2016, copyright Sebastian Schmeier (s.schmeier@gmail.com), sschmeier.com
 
 template version: 1.6 (2016/11/09)
+
 """
 from timeit import default_timer as timer
 from multiprocessing import Pool
@@ -140,16 +141,16 @@ def my_func(args):
     fname = args[0]
     dnlurl = args[1]
     dest_dir = args[2]
-    rsync_cmd = f"rsync --times --copy-links --partial {dnlurl} {dest_dir}"
+    rsync_cmd = f"rsync --omit-dir-times --rsync-path='/usr/bin/sudo /bin/rsync' --copy-links --partial {dnlurl} {dest_dir}"
     retcode = subprocess.call(rsync_cmd, shell=True)
     return (args, retcode)
 
 
-def parse_assemblyfile(branch, genomictypes=["Complete Genome"], dest_dir='/mnt/UTELifeNAS/homes/Savvy/Genomes'):
+def parse_assemblyfile(branch, genomictypes=["Complete Genome"], dest_dir='/media/UTELifeNAS/homes/Savvy/Genomes'):
     fname = f'genomes/refseq/{branch}/assembly_summary.txt'
     url = f'rsync://ftp.ncbi.nlm.nih.gov/{fname}'
 
-    rsync_cmd = f"rsync -R --times --copy-links --partial {url} {dest_dir}"
+    rsync_cmd = f"rsync --omit-dir-times --rsync-path='/usr/bin/sudo /bin/rsync'  --copy-links --partial {url} {dest_dir}"
     retcode = subprocess.call(rsync_cmd, shell=True)
    
     jobs = []
@@ -178,7 +179,7 @@ def parse_assemblyfile(branch, genomictypes=["Complete Genome"], dest_dir='/mnt/
             dnlurl   = os.path.join(ftp_path, name)
             #### Replace 'ftp://' by 'https://' 
             dnlurl = dnlurl.replace('https://', 'rsync://')
-            jobs.append((name, dnlurl, f'/mnt/UTELifeNAS/homes/Savvy/Genomes/refseq/{branch}', branch))
+            jobs.append((name, dnlurl, f'/media/UTELifeNAS/homes/Savvy/Genomes/refseq/{branch}', branch))
     return jobs, retcode, d
 
 
@@ -195,7 +196,7 @@ def main():
 
     job_list = []
     for branch in branches:
-        job_list_branch, retcode, dStats = parse_assemblyfile(branch, types, '/mnt/UTELifeNAS/homes/Savvy/Genomes/')
+        job_list_branch, retcode, dStats = parse_assemblyfile(branch, types, '/media/UTELifeNAS/homes/Savvy/Genomes/')
         job_list += job_list_branch
         if args.assemblystats:
             status = dStats.keys()
@@ -232,7 +233,7 @@ def main():
     return
 
     #-------------------------------------------------------------------------
-    # MULTITHREADING V1(by Sebastian Schmeier)
+    # MULTITHREADING V1 (by Sebastian Schmeier)
     #-------------------------------------------------------------------------
     # start_time = timer()  # very crude timing
     # # create pool of workers ---------------------
